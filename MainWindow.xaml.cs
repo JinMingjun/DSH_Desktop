@@ -55,16 +55,19 @@ public partial class MainWindow : Window
 
     private async Task StartAndLoadAsync()
     {
-        bool up = await _server.IsRunningAsync(Url);
-        if (!up)
+        // dsh web 启动时需要 token 认证。若本应用尚未捕获到token（即服务还未由本应用拉起），
+        // 则先拉起 dsh web，并从其 stdout 打印的地址中解析 token。
+        if (string.IsNullOrEmpty(_server.AuthUrl))
         {
             _serverSpawned = _server.Start(Port);
-            // 等待就绪（最多 ~30s）
-            for (int i = 0; i < 60; i++)
-            {
-                await Task.Delay(500);
-                if (await _server.IsRunningAsync(Url)) { up = true; break; }
-            }
+        }
+
+        // 等待服务就绪（最多 ~30s）
+        bool up = false;
+        for (int i = 0; i < 60; i++)
+        {
+            await Task.Delay(500);
+            if (await _server.IsReadyAsync()) { up = true; break; }
         }
 
         if (!up)
@@ -73,10 +76,10 @@ public partial class MainWindow : Window
             return;
         }
 
-        // Splash 淡出 → 加载真实 UI
+        // Splash 淡出 → 加载带 token 的真实 UI
         try { await WebView.ExecuteScriptAsync("document.getElementById('splash').style.opacity='0'"); } catch { /* ignore */ }
         await Task.Delay(250);
-        WebView.CoreWebView2.Navigate(Url);
+        WebView.CoreWebView2.Navigate(_server.AuthUrl!);
     }
 
     private async Task ShowSplashErrorAsync(string message)
