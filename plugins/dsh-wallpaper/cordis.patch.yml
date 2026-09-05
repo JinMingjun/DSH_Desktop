@@ -1,0 +1,8 @@
+# dsh-wallpaper — DSH bundle patch
+#
+# 插件挂载声明：把 dsh-wallpaper 这一层插入 Web profile 的配置树。
+# 安装后需要重启 dsh web 才会生效；此后修改 lib/client.js 只需刷新页面。
+- insert:
+    - id: dsh-wallpaper
+      name: dsh-wallpaper
+      config: {}
