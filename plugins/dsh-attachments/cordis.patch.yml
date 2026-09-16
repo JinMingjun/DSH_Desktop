@@ -1,0 +1,4 @@
+- insert:
+    - id: dsh-attachments
+      name: dsh-attachments
+      config: {}

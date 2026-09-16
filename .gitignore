@@ -1,0 +1,65 @@
+# ═══════════════════════════════════════════════════════════════
+# DSH_Desktop / .gitignore
+#
+# 收录原则：本仓库只存放桌面端 UI 本体与插件源码，即
+#   App.xaml(.cs) / MainWindow.xaml(.cs) / ServerManager.cs /
+#   DesktopPlugins.cs / DSH_Desktop.csproj / assets/ /
+#   plugins/ / tests/ / README.md / .gitignore
+# 除此之外，尤其是 DSH 的运行时数据（对话历史、附件、个人配置、
+# 凭据）与浏览器 profile，一律不入库。
+# ═══════════════════════════════════════════════════════════════
+
+
+# ── 1. DSH 运行时数据（DSH_HOME）───────────────────────────────
+# DSH_HOME 下保存 sessions 对话历史、attachments 附件、profiles
+# 插件配置、storages 会话索引、settings.yaml 个人设置，以及
+# .credentials.yaml（含 API key）。
+#
+# 本机 DSH_HOME = D:\DSH\Memory，是仓库根目录的兄弟目录，本来就在
+# 工作树之外、git 无法提交；这里保留规则用于兜底：一旦仓库根上移、
+# 或该目录被误拷进仓库，仍然拦得住。
+Memory/
+
+# DSH_HOME 的各个组成部分，单独列出以防它们在别处出现
+sessions/
+attachments/
+storages/
+profiles/
+
+# 个人配置与凭据
+.credentials.yaml
+.credentials.*
+.anonymous-user-id
+settings.yaml
+workspace.json
+files-v3.json
+
+
+# ── 2. WebView2 浏览器用户配置 ─────────────────────────────────
+# 含 Cookie、保存的登录数据（Login Data）、浏览历史、自动填充，
+# 属隐私数据，绝不入库。
+# 注意：历史上 publish/ 被整目录入库时，就是把这些一起带上去的。
+*.WebView2/
+EBWebView/
+
+
+# ── 3. 构建与发布产物 ──────────────────────────────────────────
+# 均可由 dotnet 重建，不属于"内容"，没必要入库。
+# 其中 publish/ 是桌面端实际运行的目录，内含 WebView2 profile。
+bin/
+obj/
+publish/
+
+
+# ── 4. 编辑器 / IDE / 临时文件 ─────────────────────────────────
+.vs/
+.idea/
+*.user
+*.suo
+.Rhistory
+.RData
+.Rproj.user
+
+
+# ── 5. 本地排查临时文件 ────────────────────────────────────────
+_probe-session.jsonl
