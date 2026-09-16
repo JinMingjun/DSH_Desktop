@@ -1,74 +1,45 @@
-# DSH_Desktop（Windows 版）
+# DSH Desktop（Windows）
 
-DeepSeek Harness 桌面壳 + 背景个性化插件，**macOS 版的原样 Windows 迁移**。
-思路与 macOS 版完全一致：**后台运行 `dsh web` + 前台 WebView2 独立渲染**。
+DeepSeek Harness 桌面客户端：后台运行 `dsh web`，使用 WPF + WebView2 显示独立窗口，并加载随程序分发的桌面插件。
 
-- 外壳：C# / WPF + WebView2（对应 macOS 的 Swift + WKWebView）
-- 背景插件：`dsh-wallpaper`（纯 Web 代码，跨平台，直接复用）
+## 使用
 
-## 目录结构
+启动 `publish/DSH_Desktop.exe`。更新时保留整个发布目录中的 `assets` 和 `plugins` 文件夹，关闭旧窗口后重新启动。
 
-```
-DSH_Desktop/
-├── DSH_Desktop.csproj        # WPF 项目（.NET 8 + WebView2）
-├── App.xaml / App.xaml.cs
-├── MainWindow.xaml           # 窗口 + WebView2 控件
-├── MainWindow.xaml.cs        # 启动流程：Splash → 拉起 dsh web → 淡出加载 UI
-├── ServerManager.cs          # dsh web 生命周期（探测/拉起/停止）
-├── assets/
-│   ├── AppIcon.ico           # DeepSeek 鲸鱼图标（多尺寸）
-│   └── Splash.html           # 启动过渡页（鲸鱼 logo + spinner + 淡入淡出）
-└── plugins/
-    └── dsh-wallpaper/        # 背景个性化插件（复用 macOS 版，无需改动）
-```
+- **背景个性化**：右上方的图片图标打开设置面板；单色图标、主题配色，按 Esc 收起。右侧插件栏从上往下排列。
+- **附件**：输入框左下角的回形针打开 Windows 文件选择窗口，支持多选。文件卡片位于输入框上方，与输入框等宽，多行排列；点卡片的 × 移除。官方加号仍用于原来的指令菜单。
+- **图片**：PNG、JPEG、WebP、GIF 通过 DSH 原生图片附件通道添加，受当前模型的图片限制约束。
+- **其他文件**：通过 DSH 的 `@文件路径` 机制提交，支持中文、空格路径。卡片代替输入框中的重复引用显示。能否解析 PDF、Office、音视频等内容，取决于 DSH 及其工具能力；本插件不增加这些格式的解析器。
 
-## 前置条件
+桌面插件从发布目录直接加载，无需改写或重新安装到 DSH profile。现有背景设置继续使用 `dswp:*`；文件附件草稿元数据使用 WebView 本地存储 `dsa:draft:*`。对话历史仍由 DSH 管理。
 
-1. **Windows 10/11**，已安装 **.NET 8 SDK**（`dotnet --version` 验证）。
-2. **WebView2 Runtime**（Win11 自带；Win10 通常随 Edge 安装，缺失时从
-   Microsoft 官网下载 Evergreen Bootstrapper）。
-3. **dsh 已通过 npm 全局安装**：`npm install -g @deepseek-ai/dsh`（装好后
-   `where dsh` 能查到 `dsh.cmd`）。
+## 环境与构建
 
-## 构建 & 运行
+- Windows 10/11、WebView2 Runtime。
+- 通过 npm 全局安装的 `@deepseek-ai/dsh`，确保 `dsh.cmd` 可用。
+- 编译需要 .NET 8 SDK；下方发布命令包含 .NET 运行时。
+- 本次插件接口已在 DSH `0.1.2-rc.1` 验证；升级 DSH 后需要检查输入框插槽和草稿接口的兼容性。
 
 ```powershell
-cd DSH_Desktop
 dotnet build -c Release
-dotnet run
+dotnet publish -c Release -r win-x64 --self-contained true -o publish
+node --test tests/attachments.test.cjs
 ```
 
-打包发布单文件 exe（可选）：
+测试运行时可通过 `DSH_HOME` 指向独立数据目录、`WEBVIEW2_USER_DATA_FOLDER` 指向独立浏览器数据目录，避免使用真实会话数据。运行前应确保测试端口没有已有 DSH 服务，否则桌面程序会复用已有服务。
 
-```powershell
-dotnet publish -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true
-```
+## 结构
 
-> 若 `dotnet build` 报 WebView2 包版本不存在，执行
-> `dotnet add package Microsoft.Web.WebView2` 更新到最新版即可。
-
-## 安装背景插件
-
-外壳启动后会自动拉起 `dsh web`（若已在运行则复用）。背景插件装进 DSH 的 web
-profile（与 macOS 版命令一致）：
-
-```powershell
-dsh plugin --profile web add -w "<本项目绝对路径>\plugins\dsh-wallpaper"
-```
-
-装完**重启 `dsh web`**（退出外壳、`pkill` 或任务管理器结束 node 进程、重新打开
-外壳即可）。此后修改插件 `lib/client.js` 只需刷新页面（bundle 按请求实时读取）。
-
-## 与 macOS 版的对应关系
-
-| macOS | Windows |
+| 路径 | 作用 |
 | --- | --- |
-| WKWebView | WebView2 |
-| Swift `runOpenPanelWithParameters` 弹文件面板 | WebView2 原生支持 `<input type=file>`（无需额外处理） |
-| 需要手动加 Edit 菜单（Cmd+C/V） | WebView2 原生支持 Ctrl+C/V（无需额外处理） |
-| `.icns` 图标 | `.ico` 图标（多尺寸） |
-| `codesign` 签名 | 无需签名 |
+| `MainWindow.xaml.cs` | 窗口初始化、服务启动、WebView 生命周期 |
+| `ServerManager.cs` | 查找、启动和停止 `dsh web` |
+| `DesktopPlugins.cs` | 本地插件资源、原生多选文件窗口、图片读取 |
+| `assets/desktop-bootstrap.js` | 启动前合并桌面插件清单、文件选择消息桥 |
+| `plugins/dsh-wallpaper` | 右侧插件图标栏及壁纸设置 |
+| `plugins/dsh-attachments` | 回形针、附件卡片、DSH 文件和图片接入 |
+| `tests/attachments.test.cjs` | 路径、草稿、去重、移除、图片限制和插件清单检查 |
 
-启动过渡动画：`assets/Splash.html`（鲸鱼 logo + spinner + 淡入），就绪后 JS 把
-`#splash` 透明度设为 0 再导航，`DefaultBackgroundColor` 设深色避免白闪 —— 与
-macOS 版视觉效果一致。
+## 后续插件的右侧入口
+
+背景插件通过 `shell.overlay` 提供 `desktop.plugin.action` 列表插槽。后续插件将图标注册到该插槽，按 `order` 从上到下排列；无需再创建独立悬浮按钮。按钮应提供 `title` 和 `aria-label`，保持图标尺寸和交互风格一致。

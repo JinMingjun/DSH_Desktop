@@ -3,8 +3,9 @@
  * loader format; wallpaper engine modeled on the community dsh-background
  * plugin / dsh-skin architecture).
  *
- * Adds a floating button to the top-right of the DeepSeek Harness web UI.
- * Clicking it slides out a VSCode-style sidebar panel where you can:
+ * Adds an icon to DSH's own sidebar: left of the search control while the
+ * sidebar is open, below it once the sidebar has folded to its rail. Clicking
+ * it slides out a VSCode-style panel where you can:
  *   - choose an image (native file picker, or paste a URL / data URL) as the
  *     background of the whole UI,
  *   - tune it live with sliders that also accept typed numeric input:
@@ -31,6 +32,9 @@ window.__ModuleLoader__.load({
 
     /* ══════════════════════ config & state ══════════════════════ */
 
+    const React = require("react");
+    let btn, host, panel, previewEl, controlsWrap, fileInput, styleEl;
+    let sideObserver, sideSlot = null; // sidebar mount bookkeeping
     const NS = "dswp"; // localStorage prefix: dswp:*
     const LIMITS = {
       blur:       { min: 0,   max: 60,  step: 1, unit: "px", def: 0 },
@@ -220,7 +224,7 @@ window.__ModuleLoader__.load({
       remove: "移除",
       urlPlaceholder: "或粘贴图片 URL / Data URL",
       applyUrl: "应用",
-      pathPlaceholder: "或粘贴图片绝对路径（如 /Users/你/Pictures/a.jpg）",
+      pathPlaceholder: "或粘贴图片绝对路径",
       loadPath: "加载",
       pathHint: "粘贴完整绝对路径后点「加载」，由本机服务读取图片。",
       pathError: "读取失败",
@@ -239,7 +243,7 @@ window.__ModuleLoader__.load({
       reset: "重置调节",
       clearBg: "移除背景",
       needImg: "请先选择一张图片",
-      hint: "背景固定在整个 UI 底层。选择图片后，可拖动滑杆或直接输入数值调节效果；主内容区与侧边栏会半透明露出图片，消息、输入框等内层表面保持不透明以保证可读性。",
+      hint: "调整会实时预览并自动保存。按 Esc 收起面板。",
     };
 
     function el(tag, cls, text) {
@@ -250,83 +254,155 @@ window.__ModuleLoader__.load({
     }
 
     const styleText = `
-.dswp-btn{position:fixed;top:64px;right:14px;z-index:9000;width:38px;height:38px;border-radius:12px;padding:0;cursor:pointer;
-  border:1px solid rgba(255,255,255,.25);
-  background:linear-gradient(135deg,#5686FE 0%,#4176E6 100%);
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 3px 14px rgba(86,134,254,.45);
-  transition:filter .15s,transform .15s;}
-.dswp-btn:hover{filter:brightness(1.12);transform:scale(1.07);}
-.dswp-btn svg{display:block;}
-.dswp-panel{position:fixed;top:64px;right:14px;bottom:16px;width:312px;z-index:9001;
-  display:flex;flex-direction:column;border-radius:18px;overflow:hidden;
-  background:
-    linear-gradient(180deg, rgba(86,134,254,.12) 0%, rgba(65,118,230,.05) 34%, rgba(0,0,0,0) 62%),
-    var(--dsw-alias-bg-overlay,#f8f8fa);
-  border:1px solid rgba(86,134,254,.18);
-  box-shadow:0 12px 40px rgba(0,0,0,.28);
-  transform:translateX(120%);transition:transform .24s cubic-bezier(.2,.8,.25,1);
-  backdrop-filter:blur(18px) saturate(1.5);-webkit-backdrop-filter:blur(18px) saturate(1.5);}
-.dswp-panel.open{transform:translateX(0);}
-.dswp-head{display:flex;align-items:center;justify-content:space-between;padding:14px 12px 12px 16px;
-  background:linear-gradient(135deg,#5686FE 0%,#4176E6 100%);}
-.dswp-title{font-size:14px;font-weight:600;color:#fff;letter-spacing:.2px;}
-.dswp-close{width:26px;height:26px;border:none;border-radius:8px;background:transparent;
-  color:rgba(255,255,255,.92);font-size:15px;line-height:26px;cursor:pointer;padding:0;transition:background .15s;}
-.dswp-close:hover{background:rgba(255,255,255,.22);}
-.dswp-body{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:18px;}
-.dswp-body::-webkit-scrollbar{width:8px;}
-.dswp-body::-webkit-scrollbar-thumb{background:rgba(86,134,254,.28);border-radius:4px;}
-.dswp-sec-title{display:flex;align-items:center;gap:7px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;
-  color:var(--dsw-alias-label-secondary,#5a5f6a);margin-bottom:9px;}
-.dswp-sec-title::before{content:"";width:9px;height:9px;border-radius:3px;flex:none;
-  background:linear-gradient(135deg,#5686FE,#7aa0ff);box-shadow:0 0 6px rgba(86,134,254,.5);}
-.dswp-preview{height:86px;border-radius:12px;margin-bottom:10px;
-  border:1px solid rgba(86,134,254,.22);
-  background-color:rgba(86,134,254,.05);
-  background-size:cover;background-position:center;background-repeat:no-repeat;
-  box-shadow:inset 0 1px 6px rgba(0,0,0,.12);
-  display:flex;align-items:center;justify-content:center;
-  color:var(--dsw-alias-label-tertiary,#9aa0aa);font-size:12px;}
-.dswp-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
-.dswp-row:last-child{margin-bottom:0;}
-.dswp-filebtn{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;
-  height:34px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;
-  border:none;color:#fff;
-  background:linear-gradient(135deg,#5686FE 0%,#4176E6 100%);
-  box-shadow:0 2px 10px rgba(86,134,254,.4);transition:filter .15s;}
-.dswp-filebtn:hover{filter:brightness(1.1);}
-.dswp-filehit{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0;}
-.dswp-minibtn{height:30px;padding:0 12px;border-radius:9px;cursor:pointer;font-size:12px;
-  border:1px solid var(--dsw-alias-border-l2,rgba(0,0,0,.12));
-  background:transparent;color:var(--dsw-alias-label-secondary,#5a5f6a);transition:all .15s;}
-.dswp-minibtn:hover{background:rgba(86,134,254,.1);border-color:rgba(86,134,254,.4);color:#5686FE;}
-.dswp-minibtn.dswp-danger{color:#e5484d;border-color:rgba(229,72,77,.3);}
-.dswp-minibtn.dswp-danger:hover{background:rgba(229,72,77,.1);border-color:rgba(229,72,77,.5);color:#e5484d;}
-.dswp-urlinput,.dswp-cnum{height:30px;padding:0 10px;border-radius:9px;
-  border:1px solid rgba(86,134,254,.3);background:rgba(86,134,254,.06);
-  color:var(--dsw-alias-label-primary,#1f2430);font-size:12px;transition:all .15s;}
-.dswp-urlinput{flex:1;min-width:0;}
-.dswp-urlinput::placeholder{color:var(--dsw-alias-label-tertiary,#9aa0aa);}
-.dswp-urlinput:focus,.dswp-cnum:focus{outline:none;border-color:#5686FE;box-shadow:0 0 0 3px rgba(86,134,254,.22);}
-.dswp-crow{display:flex;align-items:center;gap:8px;margin-bottom:11px;}
-.dswp-crow:last-child{margin-bottom:0;}
-.dswp-clabel{width:58px;flex:none;font-size:12px;color:var(--dsw-alias-label-secondary,#5a5f6a);}
-.dswp-crow input[type=range]{flex:1;min-width:0;-webkit-appearance:none;appearance:none;height:5px;border-radius:3px;outline:none;cursor:pointer;}
-.dswp-crow input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;border-radius:50%;
-  background:#fff;border:2px solid #5686FE;box-shadow:0 1px 5px rgba(0,0,0,.3);cursor:pointer;transition:transform .12s;}
-.dswp-crow input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15);}
-.dswp-cnum{width:56px;flex:none;text-align:right;}
-.dswp-cunit{width:18px;flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary,#9aa0aa);}
-.dswp-select{height:30px;border-radius:9px;padding:0 8px;
-  border:1px solid rgba(86,134,254,.3);background:rgba(86,134,254,.06);
-  color:var(--dsw-alias-label-primary,#1f2430);font-size:12px;}
-.dswp-foot{padding:10px 16px 14px;border-top:1px solid rgba(86,134,254,.14);
-  font-size:11px;line-height:16px;color:var(--dsw-alias-label-tertiary,#9aa0aa);
-  background:rgba(86,134,254,.04);}
-.dswp-pathstatus{font-size:11px;line-height:15px;min-height:15px;color:var(--dsw-alias-label-tertiary,#9aa0aa);margin-top:-2px;}
-.dswp-disabled{opacity:.45;pointer-events:none;filter:grayscale(.3);}
+.dsh-plugin-rail{position:fixed;top:64px;right:14px;z-index:101;display:flex;flex-direction:column;align-items:center;gap:6px;width:36px}
+.dswp-side{display:flex;align-items:center;flex:none;margin-left:auto}
+.dswp-side-rail{width:36px;justify-content:center;margin-left:0;margin-bottom:12px}
+.dswp-btn{position:relative;display:flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;cursor:pointer;border:0;border-radius:50%;background:transparent;color:var(--dsw-alias-label-secondary,#757575);transition:background .15s,color .15s}
+.dswp-side-rail .dswp-btn{width:36px;height:36px;color:var(--dsw-alias-label-primary,#222)}
+.dswp-btn:hover,.dswp-btn[aria-expanded=true]{background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12));color:var(--dsw-alias-label-primary,#222)}
+.dswp-btn svg{display:block;flex:none}.dswp-btn:focus-visible,.dswp-panel button:focus-visible,.dswp-filebtn:focus-within{outline:2px solid #5686fe;outline-offset:2px}
+.dswp-panel{position:fixed;top:64px;left:16px;bottom:16px;width:312px;max-width:calc(100vw - 32px);z-index:100;display:flex;flex-direction:column;overflow:hidden;border-radius:6px;background:var(--dsw-specific-input-major,var(--dsw-alias-bg-base,#f8f8fa));color:var(--dsw-alias-label-primary,#222);border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.2));box-shadow:0 8px 28px rgba(0,0,0,.14);visibility:hidden;opacity:0;transform:translateX(-8px);transition:opacity .15s,transform .15s,visibility .15s}
+.dswp-panel.open{visibility:visible;opacity:1;transform:translateX(0)}
+.dswp-head{display:flex;align-items:center;justify-content:space-between;min-height:48px;padding:0 14px 0 18px;border-bottom:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.16))}
+.dswp-title{font-size:12px;font-weight:600;letter-spacing:.4px}.dswp-close{width:26px;height:26px;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-secondary,#777);font-size:16px;cursor:pointer;padding:0}.dswp-close:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.12))}
+.dswp-body{flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:24px;scrollbar-width:thin}
+.dswp-sec-title{font-size:11px;font-weight:600;letter-spacing:.3px;color:var(--dsw-alias-label-secondary,#777);margin-bottom:12px}
+.dswp-preview{height:120px;border-radius:6px;margin-bottom:12px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.18));background-color:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.06));background-size:cover;background-position:center;background-repeat:no-repeat;display:flex;align-items:center;justify-content:center;color:var(--dsw-alias-label-tertiary,#888);font-size:12px}
+.dswp-row{display:flex;align-items:center;gap:8px;margin-bottom:8px}.dswp-row:last-child{margin-bottom:0}
+.dswp-filebtn{flex:1;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;height:32px;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.2));color:var(--dsw-alias-label-primary,#222);background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.08))}.dswp-filebtn:hover{border-color:#5686fe}
+.dswp-filehit{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;margin:0}
+.dswp-minibtn{height:30px;padding:0 10px;border-radius:4px;cursor:pointer;font-size:12px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.2));background:transparent;color:var(--dsw-alias-label-secondary,#777)}.dswp-minibtn:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.1))}.dswp-minibtn.dswp-danger{color:#d85b60}
+.dswp-urlinput,.dswp-cnum,.dswp-select{box-sizing:border-box;height:30px;padding:0 8px;border-radius:4px;border:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.25));background:var(--dsw-specific-input-major,transparent);color:var(--dsw-alias-label-primary,#222);font-size:12px}.dswp-urlinput{flex:1;min-width:0}.dswp-urlinput::placeholder{color:var(--dsw-alias-label-tertiary,#888)}.dswp-urlinput:focus,.dswp-cnum:focus,.dswp-select:focus{outline:1px solid #5686fe;border-color:#5686fe}
+.dswp-crow{display:flex;align-items:center;gap:8px;margin-bottom:14px}.dswp-crow:last-child{margin-bottom:0}.dswp-clabel{width:48px;flex:none;font-size:12px;color:var(--dsw-alias-label-secondary,#777)}
+.dswp-crow input[type=range]{flex:1;min-width:0;appearance:none;height:3px;border-radius:2px;cursor:pointer}.dswp-crow input[type=range]::-webkit-slider-thumb{appearance:none;width:11px;height:11px;border-radius:50%;background:#5686fe;border:0;cursor:pointer}.dswp-crow input[type=range]:focus-visible{outline:2px solid #5686fe;outline-offset:4px}
+.dswp-cnum{width:52px;flex:none;text-align:right}.dswp-cunit{width:16px;flex:none;font-size:11px;color:var(--dsw-alias-label-tertiary,#888)}
+.dswp-foot{padding:12px 18px;border-top:1px solid var(--dsw-alias-border-l2,rgba(128,128,128,.16));font-size:11px;line-height:18px;color:var(--dsw-alias-label-tertiary,#888)}.dswp-pathstatus{font-size:11px;line-height:15px;color:var(--dsw-alias-label-tertiary,#888)}.dswp-pathstatus:empty{display:none}.dswp-disabled{opacity:.4;pointer-events:none}
+@media(prefers-reduced-motion:reduce){.dswp-btn,.dswp-panel{transition:none}}
 `;
+
+    /* ══════════════════ sidebar mount ══════════════════ */
+
+    /**
+     * DSH renders the sidebar through CSS modules, so its class names carry a
+     * per-build hash prefix (`bhn1Oq_searchSlot`). Matching on the trailing,
+     * stable half survives a DSH rebuild without hard-coding the hash.
+     *
+     * Geometry copied from the sidebar's own controls so the entry reads as one
+     * of them: a 28px round icon button in the wide header, 36px in the 56px
+     * rail, with the icon sized 16/18 like `iconButton` does.
+     */
+    const SIDE_WIDE_ICON = 16;
+    const SIDE_RAIL_ICON = 18;
+    const SEARCH_SLOT = '[class*="_searchSlot"]';
+
+    function tokenEndsWith(node, suffix) {
+      for (const name of node.classList) if (name.endsWith(suffix)) return true;
+      return false;
+    }
+
+    /**
+     * The sidebar browsing region's section header — the row holding the
+     * 工作区 label, the search control and the view/add actions. Identified by
+     * the `_sectionHeader` token *and* by actually owning a search control, so
+     * an unrelated same-named row elsewhere cannot win.
+     */
+    function findSectionHeader() {
+      for (const header of document.querySelectorAll('[class*="_sectionHeader"]')) {
+        const parent = header.parentElement;
+        if (parent === null) continue;
+        if (header.querySelector(SEARCH_SLOT) !== null) return header;
+        for (const child of parent.children) if (tokenEndsWith(child, "_search")) return header;
+      }
+      return null;
+    }
+
+    /**
+     * Take over the free-space distribution of the header row. `searchSlot`
+     * normally claims it with `margin-left:auto`, which is what parks the search
+     * control at the far right; dropping that margin and giving it to our own
+     * host instead keeps the button glued to the search control's left edge
+     * (4px, the row's own gap) no matter how wide the sidebar is.
+     */
+    function applySideMode(mode, slot) {
+      if (sideSlot !== null && sideSlot !== slot) sideSlot.style.marginLeft = "";
+      sideSlot = slot;
+      if (slot !== null) slot.style.marginLeft = "0px";
+      const rail = mode === "rail";
+      if (host.classList.contains("dswp-side-rail") !== rail) host.classList.toggle("dswp-side-rail", rail);
+      const svg = btn.querySelector("svg");
+      if (svg !== null) {
+        const size = String(rail ? SIDE_RAIL_ICON : SIDE_WIDE_ICON);
+        if (svg.getAttribute("width") !== size) {
+          svg.setAttribute("width", size);
+          svg.setAttribute("height", size);
+        }
+      }
+    }
+
+    function unmountSidebar() {
+      if (sideSlot !== null) {
+        sideSlot.style.marginLeft = "";
+        sideSlot = null;
+      }
+      host?.remove();
+    }
+
+    /**
+     * Pin the button inside the sidebar: left of the search control while the
+     * sidebar is open (the search slot exists), below it once the sidebar has
+     * folded to its rail (the slot is unmounted and a bare search control takes
+     * its place as a direct child of the browsing region).
+     */
+    function syncSidebar() {
+      if (!host) return;
+      const header = findSectionHeader();
+      const root = header === null ? null : header.parentElement;
+      if (root === null) { unmountSidebar(); return; }
+      const slot = header.querySelector(SEARCH_SLOT);
+      if (slot !== null) {
+        // Ignore a requestAnimationFrame that already ran: re-inserting an
+        // already-placed node would feed the observer that called us.
+        if (host.parentElement !== header || host.nextElementSibling !== slot) header.insertBefore(host, slot);
+        applySideMode("wide", slot);
+        return;
+      }
+      for (const child of root.children) {
+        if (!tokenEndsWith(child, "_search")) continue;
+        if (host.parentElement !== root || host.previousElementSibling !== child) child.after(host);
+        applySideMode("rail", null);
+        return;
+      }
+      unmountSidebar();
+    }
+
+    /**
+     * React rebuilds these subtrees at its own discretion (the rail search only
+     * mounts once the collapse animation settles, the slot only exists while
+     * wide), and it never learns about our node. Re-pinning on DOM changes and
+     * coalescing to one pass per frame is what keeps the button in place.
+     */
+    function startSideObserver() {
+      sideObserver?.disconnect();
+      let queued = false;
+      sideObserver = new MutationObserver(() => {
+        if (queued) return;
+        queued = true;
+        window.requestAnimationFrame(() => {
+          queued = false;
+          syncSidebar();
+          if (S.open) positionPanel();
+        });
+      });
+      sideObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    /** Dock the settings panel just right of the sidebar column, where the button now lives. */
+    function positionPanel() {
+      if (!panel) return;
+      const logoRow = document.querySelector('[class*="_logoRow"]');
+      const rect = logoRow === null ? undefined : logoRow.parentElement?.getBoundingClientRect();
+      panel.style.left = rect === undefined || rect.width === 0 ? "16px" : `${Math.round(rect.right + 8)}px`;
+    }
 
     /* ══════════════════════ controls ══════════════════════ */
 
@@ -344,11 +420,13 @@ window.__ModuleLoader__.load({
       const label = el("span", "dswp-clabel", T[key]);
       const range = document.createElement("input");
       range.type = "range";
+      range.setAttribute("aria-label", T[key]);
       range.min = String(L.min); range.max = String(L.max); range.step = String(L.step);
       range.value = String(S[key]);
       paintSlider(range, L.min, L.max, S[key]);
       const numInput = document.createElement("input");
       numInput.type = "number";
+      numInput.setAttribute("aria-label", T[key] + "数值");
       numInput.min = String(L.min); numInput.max = String(L.max); numInput.step = String(L.step);
       numInput.value = String(S[key]);
       numInput.className = "dswp-cnum";
@@ -407,77 +485,63 @@ window.__ModuleLoader__.load({
       S.open = open;
       lsSet("open", open ? "1" : "0");
       panel?.classList.toggle("open", open);
-      if (btn) btn.style.display = open ? "none" : "flex";
+      if (panel) { panel.inert = !open; panel.setAttribute("aria-hidden", String(!open)); }
+      btn?.setAttribute("aria-expanded", String(open));
+      if (open) {
+        positionPanel();
+        panel?.querySelector(".dswp-close")?.focus();
+      }
     }
-
-    /**
-     * Align the button's TOP with the divider line below the 对话/轨迹 tab
-     * row (the line above the chat box). Finds the tab container in the DOM
-     * at runtime, so it tracks any window size / layout. Falls back to the
-     * static CSS `top` when the tabs are not on screen (e.g. session list).
-     */
-    function alignButton() {
-      if (!btn) return;
-      let top = null;
-      const labels = ["对话", "轨迹", "Conversation", "Trajectory"];
-      const hasPair = (t) => labels.filter((l) => t.includes(l)).length >= 2;
-      // 1) a compact container that holds both tab labels
-      const containers = Array.from(document.querySelectorAll("div,section,aside,nav,header,button,span,ul,ol")).filter((e) => {
-        const t = (e.textContent || "").trim();
-        if (!hasPair(t) || t.length > 24) return false;
-        const r = e.getBoundingClientRect();
-        return r.top >= 0 && r.top < 240 && r.height > 0 && r.height < 90 && r.width > 0;
-      });
-      if (containers.length > 0) {
-        containers.sort((a, b) => a.getBoundingClientRect().height - b.getBoundingClientRect().height);
-        top = containers[0].getBoundingClientRect().bottom;
-      } else {
-        // 2) fall back to individual tab-label elements
-        const ys = [];
-        for (const e of document.querySelectorAll("button,span,div,a")) {
-          if (e.childNodes.length === 1 && e.childNodes[0].nodeType === 3 && labels.includes((e.textContent || "").trim())) {
-            const r = e.getBoundingClientRect();
-            if (r.top >= 0 && r.top < 240 && r.width > 0) ys.push(r.bottom);
-          }
-        }
-        if (ys.length > 0) top = Math.max(...ys) + 8;
+    function onEscape(event) {
+      if (event.key === "Escape" && S.open) {
+        event.preventDefault();
+        setOpen(false);
+        btn?.focus();
       }
-      if (top !== null && top > 0 && Math.abs(top - btn.offsetTop) > 2) {
-        btn.style.top = Math.round(top) + "px";
-      }
+    }
+    /** A viewport change resizes the sidebar, which moves the panel's dock. */
+    function onResize() {
+      if (S.open) positionPanel();
     }
 
     function buildUI(ctx) {
-      const styleEl = document.createElement("style");
+      styleEl = document.createElement("style");
       styleEl.textContent = styleText;
       document.head.appendChild(styleEl);
 
-      // ── floating button (right edge, vertically centered) ──
       btn = el("button", "dswp-btn");
       btn.type = "button";
-      btn.title = T.title;
-      btn.setAttribute("aria-label", T.title);
-      btn.innerHTML =
-        '<svg width="20" height="20" viewBox="0 0 24 24" fill="none">' +
-        '<defs><linearGradient id="dswpGrad" x1="0" y1="0" x2="1" y2="1">' +
-        '<stop offset="0" stop-color="#5686FE"/><stop offset="1" stop-color="#4176E6"/>' +
-        '</linearGradient></defs>' +
-        '<rect x="3" y="3" width="18" height="18" rx="4" fill="url(#dswpGrad)"/>' +
-        '<circle cx="9" cy="9.5" r="2.3" fill="#fff"/>' +
-        '<path d="M5.5 16.5l4-4 2.6 2.6 3.4-3.4 3 3v.8a2 2 0 0 1-2 2h-9a2 2 0 0 1-2-2z" fill="#fff"/>' +
-        "</svg>";
-      btn.addEventListener("click", () => setOpen(true));
+      btn.title = "背景个性化";
+      btn.setAttribute("aria-label", "背景个性化");
+      btn.setAttribute("aria-controls", "dswp-panel");
+      btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m3 17 6-6 4 4 3-3 5 5"/></svg>';
+      btn.addEventListener("click", () => setOpen(!S.open));
+      function PluginRail({ renderSlot }) {
+        return React.createElement("nav", { className: "dsh-plugin-rail", "aria-label": "桌面插件" }, renderSlot("desktop.plugin.action", {}));
+      }
+      // The right-hand rail stays declared (other desktop plugins register their
+      // own icons here by id/order) but this plugin no longer occupies it: its
+      // entry lives in the sidebar, so it belongs with the sidebar's controls.
+      ctx.slots.inject("shell.overlay", () => ctx.slots.register({
+        name: "shell.overlay", id: "desktop-plugin-rail", order: 90,
+        children: { "desktop.plugin.action": { kind: "list", scope: "root" } },
+      }, PluginRail));
+      host = el("div", "dswp-side");
+      host.append(btn);
 
       // ── sidebar panel ──
       panel = el("aside", "dswp-panel");
+      panel.id = "dswp-panel";
       panel.setAttribute("role", "complementary");
+      panel.setAttribute("aria-label", "背景个性化");
 
       const head = el("div", "dswp-head");
       head.append(el("span", "dswp-title", T.title));
       const closeBtn = el("button", "dswp-close", "✕");
       closeBtn.type = "button";
       closeBtn.title = T.close;
-      closeBtn.addEventListener("click", () => setOpen(false));
+      closeBtn.setAttribute("aria-label", "关闭背景设置");
+      closeBtn.addEventListener("click", () => { setOpen(false); btn?.focus(); });
       head.append(closeBtn);
 
       const body = el("div", "dswp-body");
@@ -495,6 +559,7 @@ window.__ModuleLoader__.load({
       fileLabel.title = T.choose;
       fileInput = document.createElement("input");
       fileInput.type = "file";
+      fileInput.setAttribute("aria-label", T.choose);
       fileInput.accept = "image/*";
       fileInput.className = "dswp-filehit";
       fileLabel.append(fileInput);
@@ -609,6 +674,7 @@ window.__ModuleLoader__.load({
       fitRow.append(el("span", "dswp-clabel", T.fit));
       const fitSel = document.createElement("select");
       fitSel.className = "dswp-select";
+      fitSel.setAttribute("aria-label", T.fit);
       fitSel.append(new Option(T.fitCover, "cover"), new Option(T.fitContain, "contain"));
       fitSel.value = S.fit;
       fitSel.addEventListener("change", () => {
@@ -648,7 +714,7 @@ window.__ModuleLoader__.load({
       const foot = el("div", "dswp-foot", T.hint);
 
       panel.append(head, body, foot);
-      document.body.append(btn, panel);
+      document.body.append(panel);
 
       setOpen(S.open);
       refreshPreview();
@@ -665,16 +731,11 @@ window.__ModuleLoader__.load({
       applyWallpaper(ctx);
       refreshPreview();
 
-      // align the button with the 对话/轨迹 divider; re-run as the app
-      // finishes rendering and on window resize.
-      const alignTimer = () => {
-        alignButton();
-        window.setTimeout(alignButton, 400);
-        window.setTimeout(alignButton, 1200);
-        window.setTimeout(alignButton, 3000);
-      };
-      alignTimer();
-      window.addEventListener("resize", alignButton);
+      syncSidebar();
+      startSideObserver();
+      window.addEventListener("resize", onResize);
+
+      document.addEventListener("keydown", onEscape);
 
       // keep the shading in sync after a scheme/skin switch
       ctx.on("theme/change", () => {
@@ -686,7 +747,11 @@ window.__ModuleLoader__.load({
       ctx.effect(
         () => () => {
           teardownWallpaper();
-          window.removeEventListener("resize", alignButton);
+          sideObserver?.disconnect();
+          window.removeEventListener("resize", onResize);
+          document.removeEventListener("keydown", onEscape);
+          styleEl?.remove();
+          host?.remove();
           btn?.remove();
           panel?.remove();
         },

@@ -17,6 +17,7 @@ public partial class MainWindow : Window
     private string Url => $"http://127.0.0.1:{Port}";
 
     private readonly ServerManager _server = new();
+    private DesktopPlugins? _desktopPlugins;
     private bool _serverSpawned = false;   // 仅当本应用自己拉起服务时才在退出时杀掉它
 
     public MainWindow()
@@ -42,6 +43,8 @@ public partial class MainWindow : Window
     private async Task InitializeWebViewAsync()
     {
         await WebView.EnsureCoreWebView2Async();
+        _desktopPlugins = new DesktopPlugins(this, WebView.CoreWebView2, new Uri(Url));
+        await _desktopPlugins.InitializeAsync();
         // 深色底，避免导航瞬间白屏闪烁
         WebView.DefaultBackgroundColor = Color.FromArgb(0xFF, 0x10, 0x10, 0x14);
     }
@@ -93,6 +96,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosed(EventArgs e)
     {
+        _desktopPlugins?.Dispose();
         if (_serverSpawned) _server.Stop();
         base.OnClosed(e);
     }

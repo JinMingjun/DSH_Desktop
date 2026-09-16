@@ -1,8 +1,8 @@
 {
   "name": "dsh-wallpaper",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
-  "description": "DeepSeek Harness Web UI 全局壁纸插件：右侧悬浮按钮展开侧栏，选择图片作为整个 UI 的背景，支持模糊 / 亮度 / 饱和度 / 对比度 / 透明度调节（滑杆 + 手动输入）。",
+  "description": "DeepSeek Harness 背景个性化：右侧图标栏、实时壁纸调节。",
   "type": "module",
   "main": "lib/index.js",
   "exports": {
@@ -23,7 +23,7 @@
     "client": {
       "platform": "web",
       "inject": [
-        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-sidebar",
         "@deepseek-ai/dsh-client-locale",
         "@deepseek-ai/dsh-client-ui-theme"
       ]

@@ -24,6 +24,8 @@
     <!-- 启动页随构建复制到输出目录 -->
     <None Include="assets\Splash.html" CopyToOutputDirectory="PreserveNewest" />
     <None Include="assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="assets\desktop-bootstrap.js" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Update="plugins\**\lib\*.js" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
