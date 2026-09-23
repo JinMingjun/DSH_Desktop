@@ -1,4 +1,7 @@
 using System.IO;
+using System.Globalization;
+using System.Net.Http;
+using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using System.Windows;
@@ -14,6 +17,10 @@ public sealed class DesktopPlugins(Window owner, CoreWebView2 webView, Uri origi
     private const long MaxBatchImageBytes = 64 * 1024 * 1024;
     private const int MaxFiles = 32;
     private bool _picking;
+    private static readonly HttpClient BalanceClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private readonly SemaphoreSlim _balanceGate = new(1, 1);
+    private DateTimeOffset _balanceFetchedAt;
+    private string? _cachedBalance;
     private bool _disposed;
     private int _navigation;
     private string? _scriptId;
@@ -52,6 +59,7 @@ public sealed class DesktopPlugins(Window owner, CoreWebView2 webView, Uri origi
         {
             "/__desktop/plugins/wallpaper.js" => ("dsh-wallpaper", "dsh-desktop-wallpaper"),
             "/__desktop/plugins/attachments.js" => ("dsh-attachments", "dsh-desktop-attachments"),
+            "/__desktop/plugins/balance.js" => ("dsh-balance", "dsh-desktop-balance"),
             _ => (null, null),
         };
         if (plugin is null) return;
@@ -73,11 +81,13 @@ public sealed class DesktopPlugins(Window owner, CoreWebView2 webView, Uri origi
     {
         if (_disposed || !IsLocal(e.Source) || !IsLocal(webView.Source)) return;
         string? requestId;
+        string? type;
         try
         {
             using var json = JsonDocument.Parse(e.WebMessageAsJson);
             var root = json.RootElement;
-            if (root.GetProperty("type").GetString() != "dsh:pick-files") return;
+            type = root.GetProperty("type").GetString();
+            if (type is not ("dsh:pick-files" or "dsh:balance-get")) return;
             requestId = root.GetProperty("requestId").GetString();
             if (!Guid.TryParse(requestId, out _)) return;
         }
@@ -88,6 +98,12 @@ public sealed class DesktopPlugins(Window owner, CoreWebView2 webView, Uri origi
         {
             if (!_disposed && navigation == _navigation && IsLocal(webView.Source))
                 webView.PostWebMessageAsJson(JsonSerializer.Serialize(value));
+        }
+        if (type == "dsh:balance-get")
+        {
+            var (balance, error) = await GetBalanceAsync();
+            Reply(new { type = "dsh:balance-result", requestId, balance, error });
+            return;
         }
         if (_picking)
         {
@@ -147,6 +163,41 @@ public sealed class DesktopPlugins(Window owner, CoreWebView2 webView, Uri origi
         catch (Exception ex)
         { Reply(new { type = "dsh:files-picked", requestId, error = ex.Message }); }
         finally { _picking = false; }
+    }
+
+    private async Task<(string? Balance, string? Error)> GetBalanceAsync()
+    {
+        var key = Environment.GetEnvironmentVariable("DEEPSEEK_API_KEY");
+        if (string.IsNullOrWhiteSpace(key)) return (null, "未设置 DEEPSEEK_API_KEY");
+        await _balanceGate.WaitAsync();
+        try
+        {
+            if (_cachedBalance is not null && DateTimeOffset.UtcNow - _balanceFetchedAt < TimeSpan.FromSeconds(5))
+                return (_cachedBalance, null);
+            using var request = new HttpRequestMessage(HttpMethod.Get, "https://api.deepseek.com/user/balance");
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", key);
+            using var response = await BalanceClient.SendAsync(request);
+            if (!response.IsSuccessStatusCode)
+                return (null, response.StatusCode == System.Net.HttpStatusCode.Unauthorized ? "API 密钥无效" : $"余额接口返回 HTTP {(int)response.StatusCode}");
+            await using var stream = await response.Content.ReadAsStreamAsync();
+            using var json = await JsonDocument.ParseAsync(stream);
+            if (!json.RootElement.TryGetProperty("balance_infos", out var infos) || infos.ValueKind != JsonValueKind.Array)
+                return (null, "余额接口返回的数据无效");
+            foreach (var info in infos.EnumerateArray())
+            {
+                if (info.ValueKind != JsonValueKind.Object || !info.TryGetProperty("currency", out var currency) || currency.GetString() != "CNY") continue;
+                if (!info.TryGetProperty("total_balance", out var total) || total.ValueKind != JsonValueKind.String) break;
+                var value = total.GetString();
+                if (value is null || !decimal.TryParse(value, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out _)) break;
+                _cachedBalance = value;
+                _balanceFetchedAt = DateTimeOffset.UtcNow;
+                return (value, null);
+            }
+            return (null, "余额接口未提供有效的 CNY 余额");
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or JsonException or IOException)
+        { return (null, "余额查询失败，请稍后重试"); }
+        finally { _balanceGate.Release(); }
     }
 
     public void Dispose()
