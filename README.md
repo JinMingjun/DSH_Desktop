@@ -29,6 +29,7 @@ dotnet publish DSH_Desktop.csproj -c Release -r win-x64 --self-contained true -o
 - **图片**：PNG、JPEG、WebP、GIF 通过 DSH 原生图片附件通道添加，受当前模型的图片限制约束。
 - **其他文件**：通过 DSH 的 `@文件路径` 机制提交，支持中文、空格路径。卡片代替输入框中的重复引用显示。能否解析 PDF、Office、音视频等内容，取决于 DSH 及其工具能力；本插件不增加这些格式的解析器。
 - **API 余额**：Session 日志下方、与“对话 / 轨迹”平齐处显示当前 DeepSeek API 账户的人民币可用余额，与按钮居中对齐，每 15 秒更新。由桌面宿主使用 `DEEPSEEK_API_KEY` 查询，密钥不进入网页脚本。
+- **统计状态**：输入框下方的统计行使用随主题变化的毛玻璃底板，宽度与输入框一致；系统要求减少透明度或浏览器不支持背景模糊时显示实色底板。
 
 桌面插件从发布目录直接加载，无需改写或重新安装到 DSH profile。现有背景设置继续使用 `dswp:*`；文件附件草稿元数据使用 WebView 本地存储 `dsa:draft:*`。对话历史仍由 DSH 管理。
 
@@ -56,6 +57,7 @@ node --test tests/attachments.test.cjs
 | `plugins/dsh-wallpaper` | 右侧插件图标栏及壁纸设置 |
 | `plugins/dsh-attachments` | 回形针、附件卡片、DSH 文件和图片接入 |
 | `plugins/dsh-balance` | DeepSeek API 余额显示 |
+| `plugins/dsh-stats-surface` | 输入框下方统计行的毛玻璃底板 |
 | `tests/attachments.test.cjs` | 路径、草稿、去重、移除、图片限制和插件清单检查 |
 
 ## 后续插件的右侧入口

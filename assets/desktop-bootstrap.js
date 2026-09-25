@@ -2,11 +2,12 @@
 // the executable; the server's profile and conversation files are untouched.
 (() => {
   if (window.top !== window || location.origin !== "__DSH_ORIGIN__") return;
-  const revision = "desktop-v3";
+  const revision = "desktop-v4";
   const plugins = [
     { id: "dsh-desktop-wallpaper", file: "wallpaper", inject: ["@deepseek-ai/dsh-client-ui-sidebar", "@deepseek-ai/dsh-client-ui-theme"] },
     { id: "dsh-desktop-attachments", file: "attachments", inject: ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-reference"] },
     { id: "dsh-desktop-balance", file: "balance", inject: ["@deepseek-ai/dsh-client-ui-conversation"] },
+    { id: "dsh-desktop-stats-surface", file: "stats-surface", inject: ["@deepseek-ai/dsh-client-ui-chat"] },
   ];
   let manifest;
   Object.defineProperty(window, "__DSH_BOOT__", {
@@ -17,7 +18,7 @@
         manifest = value;
         return;
       }
-      const replaced = new Set(["dsh-wallpaper", "dsh-attachments", "dsh-balance", ...plugins.map(p => p.id)]);
+      const replaced = new Set(["dsh-wallpaper", "dsh-attachments", "dsh-balance", "dsh-stats-surface", ...plugins.map(p => p.id)]);
       const entries = value.entries.filter(p => !replaced.has(p.id));
       const batches = value.batches.map(b => ({ ...b, entries: b.entries.filter(id => !replaced.has(id)) }))
         .filter(b => b.entries.length);

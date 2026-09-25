@@ -60,6 +60,7 @@ public sealed class DesktopPlugins(Window owner, CoreWebView2 webView, Uri origi
             "/__desktop/plugins/wallpaper.js" => ("dsh-wallpaper", "dsh-desktop-wallpaper"),
             "/__desktop/plugins/attachments.js" => ("dsh-attachments", "dsh-desktop-attachments"),
             "/__desktop/plugins/balance.js" => ("dsh-balance", "dsh-desktop-balance"),
+            "/__desktop/plugins/stats-surface.js" => ("dsh-stats-surface", "dsh-desktop-stats-surface"),
             _ => (null, null),
         };
         if (plugin is null) return;

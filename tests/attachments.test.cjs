@@ -145,8 +145,9 @@ test('desktop manifest adds separate client batches without duplicate profile pl
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../assets/desktop-bootstrap.js'), 'utf8').replace('__DSH_ORIGIN__', 'http://127.0.0.1:3080'), { window, location: { origin: 'http://127.0.0.1:3080' } });
   window.__DSH_BOOT__ = { rev: 'original', entries: [{ id: 'core' }, { id: 'dsh-wallpaper' }], batches: [{ phase: 'application', entries: ['core', 'dsh-wallpaper'] }] };
   const graph = window.__DSH_BOOT__;
-  assert.equal(graph.entries.length, 4);
+  assert.equal(graph.entries.length, 5);
   assert.equal(graph.entries.filter(e => e.id.includes('wallpaper')).length, 1);
   assert.equal(graph.batches.filter(b => b.entries.includes('dsh-desktop-attachments')).length, 1);
   assert.equal(graph.batches.filter(b => b.entries.includes('dsh-desktop-balance')).length, 1);
+  assert.equal(graph.batches.filter(b => b.entries.includes('dsh-desktop-stats-surface')).length, 1);
 });
