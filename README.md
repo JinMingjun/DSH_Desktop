@@ -1,5 +1,5 @@
 # DSH Desktop（Windows）
-
+DeepSeek. V4-flash自己做的客户端，我知道我做的其实已经有点晚了，但是还是把它放出来吧。
 DeepSeek Harness 桌面客户端：后台运行 `dsh web`，使用 WPF + WebView2 显示独立窗口，并加载随程序分发的桌面插件。
 
 ## 从仓库部署
