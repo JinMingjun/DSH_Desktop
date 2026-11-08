@@ -9,8 +9,8 @@
     <RootNamespace>DSH_Desktop</RootNamespace>
     <AssemblyName>DSH_Desktop</AssemblyName>
     <ApplicationIcon>assets\AppIcon.ico</ApplicationIcon>
-    <AssemblyTitle>DeepSeek DSH</AssemblyTitle>
-    <Product>DeepSeek DSH</Product>
+    <AssemblyTitle>DeepSeek Harness</AssemblyTitle>
+    <Product>DeepSeek Harness</Product>
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
   </PropertyGroup>

@@ -1,0 +1,13 @@
+{
+  "name": "dsh-preset-dafeiyu-strong",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent preset \u5927\u80a5\u9c7c-\u5f3a\u653b\u51fb\u6027: the \u5927\u80a5\u9c7c\u7fa4\u53cb V1.1 persona.",
+  "type": "module",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}

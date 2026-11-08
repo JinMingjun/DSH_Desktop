@@ -9,11 +9,11 @@
   .spinner{width:20px;height:20px;border:2px solid rgba(86,134,254,.22);border-top-color:#5686FE;
     border-radius:50%;animation:dsspin .8s linear infinite}
   @keyframes dsspin{to{transform:rotate(360deg)}}
-  .txt{font-size:15px;color:#9aa0aa;letter-spacing:.3px}
+  .txt{font-size:15px;color:#9aa0aa;letter-spacing:.3px;text-align:center;max-width:80vw}
   @media (prefers-color-scheme: light){ .txt{color:#5a5f6a} }
 </style></head><body>
   <div id="splash">
     <div class="spinner"></div>
-    <div class="txt">Starting DeepSeek Harness…</div>
+    <div class="txt" id="status">Starting DeepSeek Harness…</div>
   </div>
 </body></html>

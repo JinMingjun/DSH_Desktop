@@ -5,8 +5,6 @@
   const revision = "desktop-v4";
   const plugins = [
     { id: "dsh-desktop-wallpaper", file: "wallpaper", inject: ["@deepseek-ai/dsh-client-ui-sidebar", "@deepseek-ai/dsh-client-ui-theme"] },
-    { id: "dsh-desktop-attachments", file: "attachments", inject: ["@deepseek-ai/dsh-client-ui-conversation", "@deepseek-ai/dsh-client-ui-reference"] },
-    { id: "dsh-desktop-balance", file: "balance", inject: ["@deepseek-ai/dsh-client-ui-conversation"] },
     { id: "dsh-desktop-stats-surface", file: "stats-surface", inject: ["@deepseek-ai/dsh-client-ui-chat"] },
   ];
   let manifest;
@@ -18,7 +16,9 @@
         manifest = value;
         return;
       }
-      const replaced = new Set(["dsh-wallpaper", "dsh-attachments", "dsh-balance", "dsh-stats-surface", ...plugins.map(p => p.id)]);
+      // `dsh-balance` is a regular profile plugin now, so it is NOT replaced here:
+      // the 0.2.x live graph re-sync would drop desktop-injected rows anyway.
+      const replaced = new Set(["dsh-wallpaper", "dsh-stats-surface", ...plugins.map(p => p.id)]);
       const entries = value.entries.filter(p => !replaced.has(p.id));
       const batches = value.batches.map(b => ({ ...b, entries: b.entries.filter(id => !replaced.has(id)) }))
         .filter(b => b.entries.length);
@@ -33,7 +33,6 @@
 
   const webview = window.chrome?.webview;
   if (!webview) return;
-  let pending;
   let balancePending;
   webview.addEventListener("message", event => {
     const result = event.data;
@@ -42,12 +41,7 @@
       balancePending = undefined;
       clearTimeout(request.timeout);
       request.resolve(result);
-      return;
     }
-    if (result?.type !== "dsh:files-picked" || result.requestId !== pending?.id) return;
-    const request = pending;
-    pending = undefined;
-    result.error ? request.reject(new Error(result.error)) : request.resolve(result);
   });
   window.dshDesktop = Object.freeze({
     getBalance() {
@@ -65,15 +59,6 @@
       });
       if (balancePending?.id === id) balancePending.promise = promise;
       return promise;
-    },
-    pickFiles() {
-      if (pending) return Promise.reject(new Error("文件选择窗口已打开"));
-      return new Promise((resolve, reject) => {
-        const id = crypto.randomUUID();
-        pending = { id, resolve, reject };
-        try { webview.postMessage({ type: "dsh:pick-files", requestId: id }); }
-        catch (error) { pending = undefined; reject(error); }
-      });
     },
   });
 })();
