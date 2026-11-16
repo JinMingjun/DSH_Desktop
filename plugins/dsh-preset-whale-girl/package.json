@@ -1,0 +1,13 @@
+{
+  "name": "dsh-preset-whale-girl",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Agent preset 鲸鱼娘: a lazy, food-loving whale-girl companion persona.",
+  "type": "module",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}

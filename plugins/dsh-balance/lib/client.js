@@ -27,7 +27,7 @@ window.__ModuleLoader__.load({
     const styles = `
 .dsh-balance{position:absolute;right:28px;bottom:11px;z-index:1;max-width:calc(100% - 150px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-tertiary);font-size:13px;font-weight:500;line-height:16px;font-family:inherit;font-variant-numeric:tabular-nums}
 .dsh-balance-utilities{position:relative}
-.dsh-balance-utilities .dsh-balance{top:calc(100% + 4px);bottom:auto;left:50%;right:auto;max-width:none;transform:translateX(-50%)}
+.dsh-balance-utilities .dsh-balance{top:calc(100% + 10px);bottom:auto;left:50%;right:auto;max-width:none;transform:translateX(-50%)}
 `;
 
     /** Two-decimal money text with grouped digits; sub-cent amounts stay readable. */

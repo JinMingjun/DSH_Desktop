@@ -1,0 +1,13 @@
+{
+  "name": "dsh-preset-deepseek-companion",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A relationship-aware DeepSeek companion preset for everyday and Channel conversations.",
+  "type": "module",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "license": "MIT"
+}
