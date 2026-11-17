@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -35,13 +36,16 @@ public partial class MainWindow : Window
     private readonly ServerManager _server = new();
     private readonly CancellationTokenSource _lifetime = new();
     private DesktopPlugins? _desktopPlugins;
+    private TrayController? _tray;
     private bool _serverSpawned;   // 仅当本应用自己拉起服务时才在退出时杀掉它
+    private bool _forceExit;
     private volatile bool _closing;
 
     public MainWindow()
     {
         InitializeComponent();
         Loaded += async (_, _) => await OnLoadedAsync();
+        System.Windows.Application.Current.SessionEnding += OnSessionEnding;
     }
 
     private static int EnvSeconds(string name, int fallback)
@@ -100,6 +104,8 @@ public partial class MainWindow : Window
             }
             _desktopPlugins = new DesktopPlugins(WebView.CoreWebView2, new Uri(origin));
             await _desktopPlugins.InitializeAsync();
+            _tray = new TrayController(this, WebView.CoreWebView2, new Uri(origin));
+            _tray.ExitRequested += OnTrayExitRequested;
 
             // Splash 淡出 → 加载带 token 的真实 UI
             try { await WebView.ExecuteScriptAsync("document.getElementById('splash').style.opacity='0'"); } catch { /* ignore */ }
@@ -114,8 +120,35 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             if (_closing) return;
-            MessageBox.Show("DeepSeek Harness 启动失败：" + ex.Message, "DeepSeek Harness", MessageBoxButton.OK, MessageBoxImage.Error);
+            System.Windows.MessageBox.Show("DeepSeek Harness 启动失败：" + ex.Message, "DeepSeek Harness", MessageBoxButton.OK, MessageBoxImage.Error);
         }
+    }
+
+    /// <summary>
+    /// 仅当 dsh-tray 的浏览器半侧已经确认启用时拦截关闭；插件未启用、尚未加载或
+    /// 正在退出 Windows 时都沿用原来的关闭即退出逻辑。
+    /// </summary>
+    protected override void OnClosing(CancelEventArgs e)
+    {
+        if (!_forceExit && _tray?.Enabled == true)
+        {
+            e.Cancel = true;
+            _tray.HideWindow();
+            return;
+        }
+        base.OnClosing(e);
+    }
+
+    private void OnTrayExitRequested(object? sender, EventArgs e)
+    {
+        _forceExit = true;
+        Close();
+    }
+
+    private void OnSessionEnding(object? sender, SessionEndingCancelEventArgs e)
+    {
+        // 注销或关机不能被托盘功能拦住。
+        _forceExit = true;
     }
 
     /// <summary>
@@ -247,7 +280,7 @@ public partial class MainWindow : Window
         catch (Exception)
         {
             // WebView2 不可用时退回系统消息框，至少让原因可见。
-            MessageBox.Show(message + (string.IsNullOrWhiteSpace(detail) ? "" : Environment.NewLine + Environment.NewLine + detail),
+            System.Windows.MessageBox.Show(message + (string.IsNullOrWhiteSpace(detail) ? "" : Environment.NewLine + Environment.NewLine + detail),
                 "DeepSeek Harness", MessageBoxButton.OK, MessageBoxImage.Error);
         }
         await Task.CompletedTask;
@@ -256,7 +289,13 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         _closing = true;
+        System.Windows.Application.Current.SessionEnding -= OnSessionEnding;
         try { _lifetime.Cancel(); } catch { /* 已释放 */ }
+        if (_tray is not null)
+        {
+            _tray.ExitRequested -= OnTrayExitRequested;
+            _tray.Dispose();
+        }
         _desktopPlugins?.Dispose();
         if (_serverSpawned) _server.Stop();
         _server.Dispose();

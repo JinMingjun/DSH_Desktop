@@ -1,0 +1,6 @@
+# dsh-tray — DSH Desktop 托盘插件
+# Host 半侧为空实现；浏览器半侧把插件开关、最近会话和导航命令接到 WPF 宿主。
+- insert:
+    - id: dsh-tray
+      name: dsh-tray
+      config: {}

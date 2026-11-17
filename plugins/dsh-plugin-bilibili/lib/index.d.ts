@@ -24,15 +24,15 @@ export declare const name = "dsh-plugin-bilibili";
 export declare const inject: string[];
 /** Default cooperative tool-call timeout budget (ms). */
 export declare const DEFAULT_BILIBILI_TOOL_TIMEOUT_MS = 30000;
-/** Environment variable naming the optional Bilibili session cookie. */
-export declare const DEFAULT_COOKIE_ENV = "BILIBILI_SESSDATA";
+/** Environment variable naming the optional Bilibili session cookie. Empty keeps this build anonymous. */
+export declare const DEFAULT_COOKIE_ENV = "";
 /** Plugin config; every field is optional with env and constant defaults. */
 export interface Config {
     /** API base URL override; defaults to api.bilibili.com. */
     baseUrl?: string;
     /** Literal Cookie header value; prefer cookieEnv so no secret enters config files. */
     cookie?: string;
-    /** Environment variable naming the cookie; defaults to BILIBILI_SESSDATA. */
+    /** Environment variable naming the cookie; empty by default so the plugin stays anonymous. */
     cookieEnv?: string;
     /** User-Agent header. */
     userAgent?: string;

@@ -75,8 +75,8 @@ export const inject = ['tools', 'systemPrompt']
 /** Default cooperative tool-call timeout budget (ms). */
 export const DEFAULT_BILIBILI_TOOL_TIMEOUT_MS = 30_000
 
-/** Environment variable naming the optional Bilibili session cookie. */
-export const DEFAULT_COOKIE_ENV = 'BILIBILI_SESSDATA'
+/** Environment variable naming the optional Bilibili session cookie. Empty keeps this build anonymous. */
+export const DEFAULT_COOKIE_ENV = ''
 
 /** Plugin config; every field is optional with env and constant defaults. */
 export interface Config {
@@ -84,7 +84,7 @@ export interface Config {
   baseUrl?: string
   /** Literal Cookie header value; prefer cookieEnv so no secret enters config files. */
   cookie?: string
-  /** Environment variable naming the cookie; defaults to BILIBILI_SESSDATA. */
+  /** Environment variable naming the cookie; empty by default so the plugin stays anonymous. */
   cookieEnv?: string
   /** User-Agent header. */
   userAgent?: string

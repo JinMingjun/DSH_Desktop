@@ -60,7 +60,7 @@ BILIBILI_SESSDATA=<你的裸 token>
 |---|---|---|
 | `baseUrl` | `https://api.bilibili.com` | API 主机。 |
 | `cookie` | — | 字面量 SESSDATA（secret；优先用 `cookieEnv`）。 |
-| `cookieEnv` | `BILIBILI_SESSDATA` | 存放可选 SESSDATA token 的环境变量名。 |
+| `cookieEnv` | — | 存放可选 SESSDATA token 的环境变量名；留空时保持匿名。 |
 | `userAgent` | Chrome 126 桌面 UA | User-Agent 头。 |
 | `requestTimeoutMs` | `30000` | 单请求超时，毫秒。 |
 | `subtitleLanguage` | `zh-CN` | 首选字幕语言标签；精确匹配优先，否则取第一条轨。 |

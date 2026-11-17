@@ -13,13 +13,15 @@ cd DSH_Desktop
 npm install -g @deepseek-ai/dsh@0.2.1-rc.2
 $wallpaperPlugin = (Resolve-Path .\plugins\dsh-wallpaper).Path
 $balancePlugin = (Resolve-Path .\plugins\dsh-balance).Path
+$trayPlugin = (Resolve-Path .\plugins\dsh-tray).Path
 dsh plugin --profile web add -w $wallpaperPlugin
 dsh plugin --profile web add -w $balancePlugin
+dsh plugin --profile web add -w $trayPlugin
 dotnet publish DSH_Desktop.csproj -c Release -r win-x64 --self-contained true -o publish
 .\publish\DSH_Desktop.exe
 ```
 
-`0.2.1-rc.2` 是此项目验证过的 DSH 版本；升级后需要重新检查插件插槽兼容性与客户端启动图格式。安装后应能在终端执行 `dsh.cmd`。`DSH_HOME` 可选，默认使用用户目录下的 `.dsh`；如需另存对话和配置，**在执行插件安装命令之前**设置指向可写目录的 `DSH_HOME`。这些本地数据无需复制进仓库。上面的两条 `dsh plugin` 命令把仓库中的壁纸与余额插件接到本机 DSH profile（它们会写进 profile 的 `dependencies` 与 `dsh.profile.bundles`，换电脑后需重新运行）；统计底板的客户端代码仍由桌面程序自动加载。
+`0.2.1-rc.2` 是此项目验证过的 DSH 版本；升级后需要重新检查插件插槽兼容性与客户端启动图格式。安装后应能在终端执行 `dsh.cmd`。`DSH_HOME` 可选，默认使用用户目录下的 `.dsh`；如需另存对话和配置，**在执行插件安装命令之前**设置指向可写目录的 `DSH_HOME`。这些本地数据无需复制进仓库。上面的三条 `dsh plugin` 命令把仓库中的壁纸、余额与托盘插件接到本机 DSH profile（它们会写进 profile 的 `dependencies` 与 `dsh.profile.bundles`，换电脑后需重新运行）；统计底板的客户端代码仍由桌面程序自动加载。
 
 三个人格预设都是可选插件，不影响桌面端主体。需要时按需执行：
 
@@ -48,6 +50,7 @@ dsh plugin --profile web add -w $companionPreset
 - **附件**：输入框左下角的 `+` 菜单里是 DSH 0.2.x 自带的官方附件功能，文件与图片都按 DSH 自身能力处理；桌面端不再注入自定义回形针，也不再维护自己的文件选择桥。
 - **API 余额**：Session 日志下方、与“对话 / 轨迹”平齐处显示当前 DeepSeek API 账户的可用余额，与按钮居中对齐，页面可见时每 15 秒更新、切回窗口立即更新；悬停可看充值 / 赠送余额拆分。查询由宿主侧发起，密钥不进入网页脚本。
 - **统计状态**：输入框下方的统计行使用随主题变化的毛玻璃底板，宽度与输入框一致；系统要求减少透明度或浏览器不支持背景模糊时显示实色底板。
+- **Windows 托盘（可选）**：在插件管理中开启 `dsh-tray` 后，关闭窗口只会隐藏到通知区域；左键恢复，右键可打开最近对话、新建对话或真正退出。关闭插件后恢复原来的“关闭即退出”。
 - **人格预设（可选）**：安装对应插件后，可选择“大肥鱼”的强、弱攻击性版本，或面向长期日常交流的“DeepSeek-同行”；未安装时不影响其他功能。
 
 桌面端专属插件（统计底板、背景增强）从发布目录直接加载，无需改写或重新安装到 DSH profile；余额插件则是 profile 插件（见上），因为它的宿主半侧要发起 API 请求。现有背景设置继续使用 `dswp:*`。对话历史仍由 DSH 管理。
@@ -82,11 +85,13 @@ node --test tests/balance.test.cjs
 | 路径 | 作用 |
 | --- | --- |
 | `MainWindow.xaml.cs` | 窗口初始化、服务启动、WebView 生命周期 |
+| `TrayController.cs` | Windows 托盘、关闭拦截和原生右键菜单 |
 | `ServerManager.cs` | 查找、启动和停止 `dsh web` |
 | `DesktopPlugins.cs` | 本地插件资源与余额宿主桥 |
 | `assets/desktop-bootstrap.js` | 启动前合并桌面插件清单、余额消息桥 |
 | `plugins/dsh-wallpaper` | 右侧插件图标栏及壁纸设置 |
 | `plugins/dsh-balance` | API 余额显示（profile 插件：宿主侧查 `user/balance`，浏览器侧渲染） |
+| `plugins/dsh-tray` | 可选托盘插件：插件开关、最近对话和桌面宿主桥 |
 | `plugins/dsh-preset-dafeiyu-strong` | “大肥鱼-强攻击性”Agent 人格预设（可选 profile 插件） |
 | `plugins/dsh-preset-dafeiyu-weak` | “大肥鱼-弱攻击性”Agent 人格预设（可选 profile 插件） |
 | `plugins/dsh-preset-deepseek-companion` | “DeepSeek-同行”长期朋友人格预设（可选 profile 插件） |

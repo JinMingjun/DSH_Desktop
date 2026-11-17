@@ -22,8 +22,8 @@ export const name = 'dsh-plugin-bilibili';
 export const inject = ['tools', 'systemPrompt'];
 /** Default cooperative tool-call timeout budget (ms). */
 export const DEFAULT_BILIBILI_TOOL_TIMEOUT_MS = 30_000;
-/** Environment variable naming the optional Bilibili session cookie. */
-export const DEFAULT_COOKIE_ENV = 'BILIBILI_SESSDATA';
+/** Environment variable naming the optional Bilibili session cookie. Empty keeps this build anonymous. */
+export const DEFAULT_COOKIE_ENV = '';
 export const Config = z.object({
     baseUrl: z.string(),
     cookie: z.string().role('secret'),
